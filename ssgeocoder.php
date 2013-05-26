@@ -85,13 +85,13 @@ class ssgeocoder {
             // Check database cache for placename
             // If found, add to $features
             if($res = $this->dbLookup($placename)){
-                $features[] = $res;
+                $features[$placename] = $res;
                 continue;
             }
 
             // Try geocoding now
             if($res = $this->_geocode($placename)){
-                $features[] = $res;
+                $features[$placename] = $res;
                 continue;
             }
         }
