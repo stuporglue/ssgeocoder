@@ -210,6 +210,7 @@ class ssgeocoder {
      */
     private function makeFeature($placename,$fully_qualified_name,$lng,$lat){
             return Array(
+                'id' => $placename,
                 'type' => 'Feature',
                 'geometry' => Array(
                     'type' => 'Point',
