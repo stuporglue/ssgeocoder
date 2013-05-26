@@ -98,7 +98,7 @@ class ssgeocoder {
 
         if($single){
             if(count($features) > 0){
-                return $features[0];
+                return array_shift($features);
             }else{
                 return FALSE;
             }
