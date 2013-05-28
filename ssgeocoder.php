@@ -162,6 +162,12 @@ class ssgeocoder {
 
         // Use file_get_contents for simplicity. 
         $json = file_get_contents($url);
+
+        // If file_get_contents failed don't log it into the database. Maybe we're throttled or there was a network snag or something.
+        if($json === FALSE){
+            return FALSE;
+        }
+
         // Sample response: {responseHeader":{"status":0,"QTime":34},"response":{"numFound":2,"start":0,"maxScore":6.8620453,"docs":[{"feature_id":4997249,"name":"Ironwood","lat":46.45466995239258,"lng":-90.17101287841797,"placetype":"City","country_code":"US","country_flag_url":"/images/flags/US.png","feature_class":"P","feature_code":"PPL","name_ascii":"Ironwood","elevation":459,"gtopo30":459,"timezone":"America/Menominee","population":5387,"fully_qualified_name":"Ironwood, Gogebic County, Michigan","google_map_url":"http://maps.google.com/maps?f=q&amp;ie=UTF-8&amp;iwloc=addr&amp;om=1&amp;z=12&amp;q=Ironwood&amp;ll=46.48466995239258,-90.17101287841797","yahoo_map_url":"http://maps.yahoo.com/broadband?mag=6&amp;mvt=m&amp;lon=-90.17101287841797&amp;lat=46.45466995239258","country_name":"United States","zipcode":["49938","49938"],"score":6.8620453}]},"spellcheck":{"suggestions":[]}}
         $ret = json_decode($json); // turn response into json
 
