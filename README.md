@@ -1,7 +1,7 @@
 ssgeocoder
 ==========
 
-Stupid Simple Geocoder -- A no-configuration Geocoder using GeoNames with an SQLite cache behind it
+Stupid Simple Geocoder -- A no-configuration Geocoder using Gisgraphy.com with an SQLite cache behind it
 
 Stupid Simple Geocoder has a single method named _geocode_
 
