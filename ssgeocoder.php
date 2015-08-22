@@ -170,8 +170,21 @@ class ssgeocoder {
         // Build the URL
         $url = "http://services.gisgraphy.com/fulltext/fulltextsearch?q=$escapedplacename&placetype=City&placetype=Adm&placetype=Country&placetype=PoliticalEntity&from=1&to=1&format=json";
 
+        // Build the http-header
+        $opts = array(
+            'http'=>array(
+              'method'=>"GET",
+              'header'=>"Accept: */*\r\n" .
+                        "Accept-Language: de\r\n" .
+                        "Accept-Encoding: gzip, deflate\r\n"
+            )
+        );
+
+	//Createa a stream context
+        $context = stream_context_create($opts);
+
         // Use file_get_contents for simplicity. 
-        $json = file_get_contents($url);
+        $json = file_get_contents($url, false, $context);
 
         // If file_get_contents failed don't log it into the database. Maybe we're throttled or there was a network snag or something.
         if($json === FALSE){
