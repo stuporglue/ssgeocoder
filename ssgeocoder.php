@@ -13,6 +13,7 @@ class ssgeocoder {
     var $sqlite;
     var $boundSelect;
     var $boundInsert;
+    var $context;
 
     /**
      * @brief Initialize database connection (and database, if needed)
@@ -53,6 +54,16 @@ class ssgeocoder {
         } catch (Exception $e){
             error_log($e->getMessage());
         }
+
+        $opts = Array(
+            'http' => Array(
+                'method' => 'GET',
+                'header' => "Accept-Encoding: gzip, deflate\r\n" . 
+                "Accept-Language: en-US\r\n" 
+            )
+        );
+
+        $this->context = stream_context_create($opts);
     }
 
 
@@ -97,7 +108,7 @@ class ssgeocoder {
                 continue;
             }
 
-            // We got a bad value back either we're being throttled or file_get_contents is disabled
+            // We got a bad value back either we're being throttled or something else goes wrong
             if($res === -1){
                 break;
             }
@@ -170,21 +181,8 @@ class ssgeocoder {
         // Build the URL
         $url = "http://services.gisgraphy.com/fulltext/fulltextsearch?q=$escapedplacename&placetype=City&placetype=Adm&placetype=Country&placetype=PoliticalEntity&from=1&to=1&format=json";
 
-        // Build the http-header
-        $opts = array(
-            'http'=>array(
-              'method'=>"GET",
-              'header'=>"Accept: */*\r\n" .
-                        "Accept-Language: de\r\n" .
-                        "Accept-Encoding: gzip, deflate\r\n"
-            )
-        );
-
-	//Createa a stream context
-        $context = stream_context_create($opts);
-
-        // Use file_get_contents for simplicity. 
-        $json = file_get_contents($url, false, $context);
+        // Use curl because file_get_contents wasn't working anymore
+        $json = $this->curl_request($url);
 
         // If file_get_contents failed don't log it into the database. Maybe we're throttled or there was a network snag or something.
         if($json === FALSE){
@@ -193,6 +191,11 @@ class ssgeocoder {
 
         // Sample response: {responseHeader":{"status":0,"QTime":34},"response":{"numFound":2,"start":0,"maxScore":6.8620453,"docs":[{"feature_id":4997249,"name":"Ironwood","lat":46.45466995239258,"lng":-90.17101287841797,"placetype":"City","country_code":"US","country_flag_url":"/images/flags/US.png","feature_class":"P","feature_code":"PPL","name_ascii":"Ironwood","elevation":459,"gtopo30":459,"timezone":"America/Menominee","population":5387,"fully_qualified_name":"Ironwood, Gogebic County, Michigan","google_map_url":"http://maps.google.com/maps?f=q&amp;ie=UTF-8&amp;iwloc=addr&amp;om=1&amp;z=12&amp;q=Ironwood&amp;ll=46.48466995239258,-90.17101287841797","yahoo_map_url":"http://maps.yahoo.com/broadband?mag=6&amp;mvt=m&amp;lon=-90.17101287841797&amp;lat=46.45466995239258","country_name":"United States","zipcode":["49938","49938"],"score":6.8620453}]},"spellcheck":{"suggestions":[]}}
         $ret = json_decode($json); // turn response into json
+
+        // return false if this isn't json. Happens when trottled or when we get back an html error message
+        if(!$json){
+            return -1;
+        }
 
         // Check if we got anything. Give up if we didn't
         if($ret->response->numFound == 0){
@@ -252,5 +255,51 @@ class ssgeocoder {
                 'fully_qualified_name' => $fully_qualified_name
             )
         );
+    }
+    /*
+     * cURL wrapper which returns request and response headers, curl request meta, post and response body.
+     *
+     * @param $url (String) The URL to make the request to
+     * @param $debug (Bool, defaults to FALSE) Should debug info be returned?
+     *
+     * @return A dict with all the requst info, if debug is TRUE. Otherwise just returns the response body
+     */
+    private function curl_request($url,$debug = FALSE){
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLINFO_HEADER_OUT, true);
+        curl_setopt($ch, CURLOPT_VERBOSE, 1);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, Array( "Accept-Encoding: gzip, deflate", "Accept-Language: en-US"));
+
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // connect timeout
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20); //timeout in seconds
+
+        $response = curl_exec($ch);
+
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $header = substr($response, 0, $header_size);
+        $body = substr($response, $header_size);
+
+        $info = curl_getinfo($ch);
+
+        $response = Array(
+            'request_headers' => (isset($info['request_header']) ? $info['request_header'] : ''),
+            'response_headers' => $header,
+            'body' => $body,
+            'errno' => curl_errno($ch),
+            'error' => curl_error($ch),
+            'curl_info' => $info,
+        );
+
+        curl_close($ch);
+
+        if($debug){
+            return $response;
+        }
+
+        return $response['body'];
     }
 }
